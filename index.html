@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Night Sky</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="sky"></canvas>
+<canvas id="overlay"></canvas>
+
+<div id="topbar">
+  <span id="title">NIGHT SKY</span>
+  <input type="datetime-local" id="datetime" step="60">
+  <button id="btnNow" title="Set to current time">Now</button>
+  <button id="btnPrev" title="Step back">&laquo; 1h</button>
+  <button id="btnNext" title="Step forward">1h &raquo;</button>
+  <button id="btnPlay" title="Play / pause time">&#9654;</button>
+  <select id="speed" title="Time speed">
+    <option value="1">Real time</option>
+    <option value="60">1 min/s</option>
+    <option value="3600">1 h/s</option>
+    <option value="86400">1 day/s</option>
+  </select>
+  <span class="spacer"></span>
+  <span id="readout"></span>
+</div>
+
+<div id="sidepanel">
+  <div class="panel-title">Location</div>
+  <div class="row">
+    <label>Lat <input type="number" id="lat" step="0.01" min="-89" max="89" value="40.71"></label>
+    <label>Lon <input type="number" id="lon" step="0.01" min="-180" max="180" value="-74.01"></label>
+  </div>
+  <button id="btnGeo" title="Uses your browser's GPS/location permission">Use my location</button>
+  <span id="geoStatus"></span>
+  <div class="row">
+    <select id="city"><option value="">-- pick a city --</option></select>
+  </div>
+  <div class="panel-title">View</div>
+  <label class="chk"><input type="checkbox" id="showLabels" checked> Labels</label>
+  <label class="chk"><input type="checkbox" id="showDSO" checked> Deep-sky objects</label>
+  <label class="chk"><input type="checkbox" id="showMW" checked> Milky Way</label>
+  <label class="chk"><input type="checkbox" id="showLines" checked> Constellation lines</label>
+  <label class="chk"><input type="checkbox" id="showEqGrid"> Equatorial grid</label>
+  <label class="chk"><input type="checkbox" id="showAzGrid"> Azimuth grid</label>
+  <label class="chk"><input type="checkbox" id="showHorizon"> Horizon (N/E/S/W)</label>
+  <label class="chk"><input type="checkbox" id="showMeridian"> Meridian</label>
+  <label class="chk"><input type="checkbox" id="hideBelow"> Ground (hide below horizon)</label>
+  <label class="chk"><input type="checkbox" id="showEcl"> Ecliptic</label>
+  <div class="panel-title">Stars</div>
+  <label class="chk"><input type="checkbox" id="autoMag" checked> Auto mag limit</label>
+  <label class="sliderlbl">Magnitude limit
+    <input type="range" id="magSlider" min="1" max="9" step="0.1" value="5" disabled>
+  </label>
+  <label class="sliderlbl">Brightness
+    <input type="range" id="brightSlider" min="0.3" max="5" step="0.05" value="1">
+  </label>
+  <div id="maginfo"></div>
+  <div class="help">
+    Drag: look around &middot; Scroll: zoom<br>
+    Click an object to identify it
+  </div>
+</div>
+
+<div id="info" class="hidden">
+  <button id="infoClose">&times;</button>
+  <div id="infoBody"></div>
+</div>
+
+<div id="tooltip" class="hidden"></div>
+
+<script src="libs/three.min.js"></script>
+<script src="libs/astronomy.min.js"></script>
+<script src="data/stars_data.js"></script>
+<script src="data/dso_data.js"></script>
+<script src="data/const_data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
