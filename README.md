@@ -6,7 +6,7 @@ step, no internet connection required after setup — just open `index.html`.
 
 ## LIVE demo
 
-[Smith Chart Tuner](https://jurgenkobierczynski.com/night-sky/index.html)
+[Night Sky](https://jurgenkobierczynski.com/night-sky/index.html)
 
 ## Screenshot
 
