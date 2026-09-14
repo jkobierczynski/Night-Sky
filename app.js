@@ -12,7 +12,7 @@ const state = {
   fov: 70,
   magBase: 5,
   showLabels: true, showDSO: true, showMW: true, showLines: true, showEcl: false,
-  showHorizon: false, showMeridian: false, hideBelow: false,
+  showHorizon: false, showMeridian: false, hideBelow: false, viewMode: 'eq',
   autoMag: true, magManual: 5, brightness: 1,
   selected: null, hover: null,
 };
@@ -388,7 +388,7 @@ const meridianLine = (function () {
 // dark-green ground dome (visible when "Ground (hide below horizon)" is on)
 const groundMesh = (function () {
   const geo = new THREE.SphereGeometry(0.9995, 48, 24, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
-  const mat = new THREE.MeshBasicMaterial({ color: 0x0d2317, side: THREE.BackSide });
+  const mat = new THREE.MeshBasicMaterial({ color: 0x071309, side: THREE.BackSide });
   const m = new THREE.Mesh(geo, mat);
   m.rotation.x = Math.PI / 2; // sphere's lower half maps to the horizontal frame's below-horizon half
   m.frustumCulled = false;
@@ -698,9 +698,35 @@ $('showMW').addEventListener('change', e => { state.showMW = e.target.checked; m
 $('showLines').addEventListener('change', e => { state.showLines = e.target.checked; constLines.visible = e.target.checked; });
 $('showEqGrid').addEventListener('change', e => { eqGrid.visible = e.target.checked; });
 $('showAzGrid').addEventListener('change', e => { state.showAzGrid = e.target.checked; azGridLines.visible = e.target.checked; });
-$('showHorizon').addEventListener('change', e => { state.showHorizon = e.target.checked; horizonLine.visible = e.target.checked; });
+$('showHorizon').addEventListener('change', e => { state.showHorizon = e.target.checked; });
 $('showMeridian').addEventListener('change', e => { state.showMeridian = e.target.checked; meridianLine.visible = e.target.checked; });
 $('hideBelow').addEventListener('change', e => { state.hideBelow = e.target.checked; });
+
+// view frame modes: 'eq' keeps the stars fixed while the horizon turns with time;
+// 'az' keeps the horizon/zenith fixed on screen while the stars drift through it
+function setViewMode(mode) {
+  if (state.viewMode === mode) return;
+  // preserve the current look direction and roll across the frame change
+  const F_old = state.viewMode === 'az' ? azGrid.quaternion : precQuat;
+  const F_new = mode === 'az' ? azGrid.quaternion : precQuat;
+  camQuat.copy(F_new).invert().multiply(F_old).multiply(camQuat).normalize();
+  state.viewMode = mode;
+  updateAlignButtons();
+}
+// roll-align the screen so its "up" matches the active frame's up axis
+function alignView() {
+  const f = new THREE.Vector3(0, 0, -1).applyQuaternion(camQuat); // current look direction (frame-local)
+  if (Math.abs(f.z) > 0.999) return; // looking straight along that axis: roll is undefined
+  const m4 = new THREE.Matrix4().lookAt(new THREE.Vector3(0, 0, 0), f, new THREE.Vector3(0, 0, 1));
+  camQuat.setFromRotationMatrix(m4);
+}
+function updateAlignButtons() {
+  $('alignAz').classList.toggle('active', state.viewMode === 'az');
+  $('alignEq').classList.toggle('active', state.viewMode === 'eq');
+}
+$('alignAz').addEventListener('click', () => { setViewMode('az'); alignView(); });
+$('alignEq').addEventListener('click', () => { setViewMode('eq'); alignView(); });
+updateAlignButtons();
 $('showEcl').addEventListener('change', e => { state.showEcl = e.target.checked; });
 $('autoMag').addEventListener('change', e => {
   state.autoMag = e.target.checked;
@@ -822,7 +848,7 @@ function drawOverlay(magLimit) {
   }
 
   // horizon cardinal directions
-  if (state.showHorizon) {
+  if (state.showHorizon || state.hideBelow) {
     const dirs = [['N', 0], ['NE', 45], ['E', 90], ['SE', 135], ['S', 180], ['SW', 225], ['W', 270], ['NW', 315]];
     ctx.textAlign = 'center';
     for (const d of dirs) {
@@ -896,8 +922,10 @@ function drawOverlay(magLimit) {
 /* ---------------- main loop ---------------- */
 let precQuat = new THREE.Quaternion();
 const tmpM4 = new THREE.Matrix4();
+const tmpQ = new THREE.Quaternion();
+const frameQ_h2j = new THREE.Quaternion(); // horizontal frame -> J2000
 function updateCameraOrientation(time) {
-  // rotate J2000 catalog frame into equator-of-date for display
+  // J2000 catalog frame -> equator of date
   const m = Astronomy.Rotation_EQJ_EQD(time).rot;
   const m4 = new THREE.Matrix4().set(
     m[0][0], m[0][1], m[0][2], 0,
@@ -905,7 +933,23 @@ function updateCameraOrientation(time) {
     m[2][0], m[2][1], m[2][2], 0,
     0, 0, 0, 1);
   precQuat.setFromRotationMatrix(m4);
-  camera.quaternion.copy(precQuat).multiply(camQuat);
+  // horizontal (alt-az) frame -> equator of date -> J2000
+  // (zenith axis -> dec = latitude on the meridian; pole at alt = latitude, az = 0)
+  const lstDeg = (((Astronomy.SiderealTime(time) + state.lon / 15) % 24 + 24) % 24) * 15;
+  const s = Math.sin(lstDeg * DEG), c = Math.cos(lstDeg * DEG);
+  const sinLat = Math.sin(state.lat * DEG), cosLat = Math.cos(state.lat * DEG);
+  const mH = new THREE.Matrix4().set(
+    -s, -sinLat * c, cosLat * c, 0,
+     c, -sinLat * s, cosLat * s, 0,
+     0,  cosLat,      sinLat,    0,
+     0, 0, 0, 1);
+  frameQ_h2j.setFromRotationMatrix(mH).premultiply(tmpQ.copy(precQuat).invert());
+  azGrid.quaternion.copy(frameQ_h2j);
+  zenithJ2000.set(cosLat * c, cosLat * s, sinLat); // observer zenith in J2000 frame
+  // camera: in equatorial mode the user orientation lives in the J2000 frame (stars fixed);
+  // in azimuth mode it lives in the horizontal frame (horizon fixed, stars drift with time)
+  if (state.viewMode === 'az') camera.quaternion.copy(frameQ_h2j).multiply(camQuat);
+  else camera.quaternion.copy(precQuat).multiply(camQuat);
 }
 function fmtTime(d) {
   return d.toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -926,19 +970,6 @@ function animate(now) {
 
   updateCameraOrientation(time);
 
-  // orient the azimuth grid: local horizontal frame -> equator of date
-  // (zenith axis -> dec = latitude on the meridian; pole at alt = latitude, az = 0)
-  const lstDeg = (((Astronomy.SiderealTime(time) + state.lon / 15) % 24 + 24) % 24) * 15;
-  const s = Math.sin(lstDeg * DEG), c = Math.cos(lstDeg * DEG);
-  const sinLat = Math.sin(state.lat * DEG), cosLat = Math.cos(state.lat * DEG);
-  const m4 = new THREE.Matrix4().set(
-    -s, -sinLat * c, cosLat * c, 0,
-     c, -sinLat * s, cosLat * s, 0,
-     0,  cosLat,      sinLat,    0,
-     0, 0, 0, 1);
-  const q = new THREE.Quaternion().setFromRotationMatrix(m4);
-  azGrid.quaternion.copy(precQuat).invert().multiply(q);
-  zenithJ2000.set(cosLat * c, cosLat * s, sinLat); // observer zenith in J2000 frame
   if (state.hideBelow) {
     tmpM4.makeRotationFromQuaternion(azGrid.quaternion);
     horizM3.setFromMatrix4(tmpM4).transpose();
@@ -949,6 +980,7 @@ function animate(now) {
   if (state.hideBelow) horizonPlane.normal.copy(zenithJ2000);
   else horizonPlane.normal.set(0, 0, 0);
   groundMesh.visible = state.hideBelow;
+  horizonLine.visible = state.showHorizon || state.hideBelow; // horizon always marks the ground edge
 
   // magnitude limit: auto from zoom level, or manual override
   const magLimit = state.autoMag
