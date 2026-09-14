@@ -1,10 +1,16 @@
 # Night Sky — Interactive Planetarium
 
-![Night Sky screenshot](night-sky.jpg)
-
 A self-contained, offline web application that renders an accurate, interactive
 representation of the night sky in your browser. No installation, no build
 step, no internet connection required after setup — just open `index.html`.
+
+## LIVE demo
+
+[Smith Chart Tuner](https://jurgenkobierczynski.com/night-sky/index.html)
+
+## Screenshot
+
+![Night Sky screenshot](night-sky.jpg)
 
 ---
 
