@@ -630,8 +630,7 @@ function updateLive(time) {
   const ve = v.clone().applyMatrix3(liveM);
   const p = vecToRadec(ve); // topocentric RA/Dec of date
   const lstH = ((Astronomy.SiderealTime(time) + state.lon / 15) % 24 + 24) % 24;
-  let ha = lstH * 15 - p[0] / DEG; // hour angle, degrees west of meridian
-  ha = ((ha % 360) + 540) % 360 - 180;
+  let ha = ((lstH * 15 - p[0] / DEG) % 360 + 360) % 360; // hour angle, 0..24h west of meridian
   const lat = state.lat * DEG, decR = p[1], H = ha * DEG;
   const sinH = Math.sin(H), cosH = Math.cos(H);
   const sinAlt = Math.sin(lat) * Math.sin(decR) + Math.cos(lat) * Math.cos(decR) * cosH;
