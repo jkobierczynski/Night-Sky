@@ -134,10 +134,10 @@ files in `data/`; they regenerate the packed `*_data.js` files.
 
 ## Credits & acknowledgements
 
-- **Built with [GLM-5.3-Flash](https://z.ai)** (Z.ai), driven through the
+- **Built with [GLM-5.3-Flash](https://z.ai), OpenRouter & OpenCode**, driven through the
   opencode CLI agent — the entire application, data pipeline, and this
   document were produced in an iterative human–AI pairing session.
-- **Total model cost: $1.30**
+- **Total model cost: $1.86**
 - Thanks to the maintainers of the HYG database, d3-celestial, three.js and
   astronomy-engine for making their work freely available.
 
